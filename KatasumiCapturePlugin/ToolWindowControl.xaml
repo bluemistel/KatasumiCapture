@@ -91,11 +91,16 @@
                       ItemsSource="{Binding HotkeyKeyCandidates}"
                       SelectedItem="{Binding HotkeyKeyLetter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                       VerticalAlignment="Center"/>
-            <TextBlock Text="+ Shift で再撮影" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#666666"/>
+            <TextBlock Text="+ Shift で再撮影" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"
+                       Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
         </StackPanel>
 
-        <Border Grid.Row="6" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8" Background="#F8F8F8">
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#444444"
+        <!-- 前景色・背景色は固定せずホスト（YMM4）のテーマを継承。枠線のみシステムブラシ -->
+        <Border Grid.Row="6"
+                BorderThickness="1"
+                Padding="8"
+                BorderBrush="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}">
+            <TextBlock TextWrapping="Wrap" FontSize="11"
                        Text="ショートカットは YMM4 のウィンドウがアクティブなときだけ有効です。「キー操作無効」にするとキーボードからは実行されません。"/>
         </Border>
     </Grid>

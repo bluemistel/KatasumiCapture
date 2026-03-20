@@ -1,18 +1,26 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace ClipboardToTimelinePlugin
 {
     public partial class ScreenCaptureOverlay : Window
     {
+        private const int HotKeyId = 0x4B53; // かたすみ Esc（他ウィンドウと衝突しにくい任意ID）
+        private const int WmHotKey = 0x0312;
+
         private System.Windows.Point _startPoint;
         private bool _isDragging = false;
+        private bool _captureFinished;
+        private bool _escapeHotKeyRegistered;
+        private HwndSource? _hwndSource;
         
         // This will allow us to return the captured bitmap and its physical coordinates
         public Action<BitmapSource?, System.Drawing.Rectangle>? OnCaptureComplete { get; set; }
@@ -20,12 +28,106 @@ namespace ClipboardToTimelinePlugin
         public ScreenCaptureOverlay()
         {
             InitializeComponent();
-            
+
             // Cover all screens
             this.Left = SystemParameters.VirtualScreenLeft;
             this.Top = SystemParameters.VirtualScreenTop;
             this.Width = SystemParameters.VirtualScreenWidth;
             this.Height = SystemParameters.VirtualScreenHeight;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+
+            var helper = new WindowInteropHelper(this);
+            IntPtr hwnd = helper.Handle;
+            if (hwnd == IntPtr.Zero)
+                return;
+
+            // フォーカスがオーバーレイに無い場合でも Esc で中断できるようシステムホットキー登録
+            if (RegisterHotKey(hwnd, HotKeyId, 0, VkEscape))
+                _escapeHotKeyRegistered = true;
+
+            _hwndSource = HwndSource.FromHwnd(hwnd);
+            _hwndSource?.AddHook(WndProc);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            UnregisterEscapeHotKey();
+            if (_hwndSource != null)
+            {
+                _hwndSource.RemoveHook(WndProc);
+                _hwndSource = null;
+            }
+            base.OnClosed(e);
+        }
+
+        private void UnregisterEscapeHotKey()
+        {
+            if (!_escapeHotKeyRegistered)
+                return;
+            var helper = new WindowInteropHelper(this);
+            if (helper.Handle != IntPtr.Zero)
+                UnregisterHotKey(helper.Handle, HotKeyId);
+            _escapeHotKeyRegistered = false;
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WmHotKey && wParam.ToInt32() == HotKeyId)
+            {
+                handled = true;
+                Dispatcher.BeginInvoke(DispatcherPriority.Send, new Action(CancelCapture));
+            }
+            return IntPtr.Zero;
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 入力優先度で再フォーカス（範囲選択開始前から PreviewKeyDown も効きやすくする）
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                Activate();
+                Focus();
+                Keyboard.Focus(this);
+            }));
+        }
+
+        private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != Key.Escape)
+                return;
+            e.Handled = true;
+            CancelCapture();
+        }
+
+        /// <summary>Esc またはユーザー中断。キャプチャは行わず閉じる。</summary>
+        private void CancelCapture()
+        {
+            if (_captureFinished)
+                return;
+            _captureFinished = true;
+
+            UnregisterEscapeHotKey();
+
+            if (_isDragging)
+            {
+                _isDragging = false;
+                try
+                {
+                    OverlayCanvas.ReleaseMouseCapture();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            SelectionRectangle.Visibility = Visibility.Hidden;
+            OnCaptureComplete?.Invoke(null, System.Drawing.Rectangle.Empty);
+            Close();
         }
 
         private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
@@ -63,11 +165,16 @@ namespace ClipboardToTimelinePlugin
 
         private void Canvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (_captureFinished)
+                return;
+
             if (_isDragging)
             {
                 _isDragging = false;
                 OverlayCanvas.ReleaseMouseCapture();
-                
+
+                _captureFinished = true;
+
                 // Hide window before capture so the red rectangle and darkened screen don't show up in the shot
                 this.Hide();
 
@@ -138,8 +245,16 @@ namespace ClipboardToTimelinePlugin
             }
         }
 
-        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        [DllImport("gdi32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool DeleteObject(IntPtr hObject);
+
+        private const uint VkEscape = 27;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     }
 }

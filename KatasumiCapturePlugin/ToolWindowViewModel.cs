@@ -78,8 +78,8 @@ namespace ClipboardToTimelinePlugin
             }
         }
 
-        /// <summary>ショートカット（低レベルフック）を無効にする</summary>
-        private bool _hotkeysSuppressed = false;
+        /// <summary>ショートカット（低レベルフック）を無効にする（既定ON・誤操作防止）</summary>
+        private bool _hotkeysSuppressed = true;
         public bool HotkeysSuppressed
         {
             get => _hotkeysSuppressed;

@@ -8,9 +8,9 @@
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Platforms>AnyCPU;x64</Platforms>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
     <Product>かたすみキャプチャ</Product>
     <AssemblyTitle>かたすみキャプチャ</AssemblyTitle>
     <Description>YMM4 向けの画面範囲キャプチャツールプラグイン（KatasumiCapture）</Description>
@@ -22,6 +22,12 @@
     <PackageProjectUrl>https://github.com/bluemistel/KatasumiCapture</PackageProjectUrl>
     <!-- Change this path if your YMM4 is installed elsewhere -->
     <YMM4_PATH>C:\tools\YukkuriMovieMaker_Dev</YMM4_PATH>
+    <!-- YMM4 user\plugin 下のフォルダ名（提出物の内側フォルダ名と一致） -->
+    <Ymm4PluginFolderJa>かたすみキャプチャプラグイン</Ymm4PluginFolderJa>
+    <!-- 提出用ZIPのルート名（publish のひとつ上の兄弟フォルダに生成） -->
+    <SubmitReleaseOuterFolderName>KatasumiCapturePlugin</SubmitReleaseOuterFolderName>
+    <!-- 提出用テキスト（Readme / 利用規約 / ライセンス）のソース -->
+    <SubmitReleaseTxtDir>$(MSBuildThisFileDirectory)submit-release-txt\</SubmitReleaseTxtDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,12 +47,55 @@
 
   <!-- Boilerplate: Automatically copy DLLs to YMM4 Plugin Folder -->
   <Target Name="CopyToYmm4PluginDir" AfterTargets="Build" Condition="'$(SkipPluginCopy)' != 'true'">
-    <MakeDir Directories="$(YMM4_PATH)\user\plugin\$(AssemblyName)" />
+    <MakeDir Directories="$(YMM4_PATH)\user\plugin\$(Ymm4PluginFolderJa)" />
     <ItemGroup>
       <SourceFiles Include="$(TargetDir)**\*.*" />
     </ItemGroup>
-    <Copy SourceFiles="@(SourceFiles)" DestinationFiles="@(SourceFiles->'$(YMM4_PATH)\user\plugin\$(AssemblyName)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
-    <Message Text="Copied plugin files to $(YMM4_PATH)\user\plugin\$(AssemblyName)" Importance="high" />
+    <Copy SourceFiles="@(SourceFiles)" DestinationFiles="@(SourceFiles->'$(YMM4_PATH)\user\plugin\$(Ymm4PluginFolderJa)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Message Text="Copied plugin files to $(YMM4_PATH)\user\plugin\$(Ymm4PluginFolderJa)" Importance="high" />
+  </Target>
+
+  <!--
+    dotnet publish 後に、提出用フォルダ構成を生成する:
+    KatasumiCapturePlugin\
+      かたすみキャプチャプラグイン\ KatasumiCapturePlugin.dll, Readme.txt
+      利用規約.txt, ライセンス.txt, Readme.txt
+    生成先: bin\<Config>\<TFM>\KatasumiCapturePlugin\ （publish フォルダと同階層）
+  -->
+  <Target Name="PrepareSubmitReleaseLayout" AfterTargets="Publish" Condition="'$(SkipSubmitReleaseLayout)' != 'true'">
+    <PropertyGroup>
+      <_PublishDirTrimmed>$(PublishDir.TrimEnd('\'))</_PublishDirTrimmed>
+      <_PublishParent>$([System.IO.Path]::GetDirectoryName('$(_PublishDirTrimmed)'))</_PublishParent>
+      <_SubmitRoot>$([System.IO.Path]::Combine('$(_PublishParent)', '$(SubmitReleaseOuterFolderName)'))</_SubmitRoot>
+      <_SubmitPluginDir>$([System.IO.Path]::Combine('$(_SubmitRoot)', '$(Ymm4PluginFolderJa)'))</_SubmitPluginDir>
+    </PropertyGroup>
+
+    <Error Condition="!Exists('$(SubmitReleaseTxtDir)Readme.txt')"
+           Text="提出用 Readme.txt がありません: $(SubmitReleaseTxtDir)Readme.txt" />
+    <Error Condition="!Exists('$(SubmitReleaseTxtDir)利用規約.txt')"
+           Text="提出用 利用規約.txt がありません: $(SubmitReleaseTxtDir)利用規約.txt" />
+    <Error Condition="!Exists('$(SubmitReleaseTxtDir)ライセンス.txt')"
+           Text="提出用 ライセンス.txt がありません: $(SubmitReleaseTxtDir)ライセンス.txt" />
+    <Error Condition="!Exists('$(PublishDir)$(AssemblyName).dll')"
+           Text="Publish 出力に $(AssemblyName).dll がありません。先に dotnet publish を確認してください。" />
+
+    <RemoveDir Directories="$(_SubmitRoot)" />
+    <MakeDir Directories="$(_SubmitPluginDir)" />
+
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)利用規約.txt" DestinationFiles="$(_SubmitRoot)\利用規約.txt" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)ライセンス.txt" DestinationFiles="$(_SubmitRoot)\ライセンス.txt" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)Readme.txt" DestinationFiles="$(_SubmitRoot)\Readme.txt" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)Readme.txt" DestinationFiles="$(_SubmitPluginDir)\Readme.txt" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).dll" DestinationFiles="$(_SubmitPluginDir)\$(AssemblyName).dll" SkipUnchangedFiles="false" />
+
+    <Message Text="提出用レイアウトを生成しました: $(_SubmitRoot)" Importance="high" />
+  </Target>
+
+  <!-- publish フォルダにも提出用テキストを同期（編集元は submit-release-txt を推奨） -->
+  <Target Name="SyncSubmitTxtToPublishDir" AfterTargets="PrepareSubmitReleaseLayout" Condition="'$(SkipSubmitReleaseLayout)' != 'true'">
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)Readme.txt" DestinationFiles="$(PublishDir)Readme.txt" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)利用規約.txt" DestinationFiles="$(PublishDir)利用規約.txt" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(SubmitReleaseTxtDir)ライセンス.txt" DestinationFiles="$(PublishDir)ライセンス.txt" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
