@@ -1,0 +1,23 @@
+<Window x:Class="ClipboardToTimelinePlugin.ScreenCaptureOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ScreenCaptureOverlay" 
+        WindowStyle="None" 
+        AllowsTransparency="True" 
+        Background="#40000000" 
+        Topmost="True" 
+        ShowInTaskbar="False" 
+        Cursor="Cross"
+        WindowState="Normal"
+        WindowStartupLocation="Manual">
+    <Canvas x:Name="OverlayCanvas" Background="Transparent" 
+            MouseDown="Canvas_MouseDown" 
+            MouseMove="Canvas_MouseMove" 
+            MouseUp="Canvas_MouseUp">
+        <Rectangle x:Name="SelectionRectangle" 
+                   Stroke="Red" 
+                   StrokeThickness="2" 
+                   Fill="#20FF0000" 
+                   Visibility="Hidden" />
+    </Canvas>
+</Window>

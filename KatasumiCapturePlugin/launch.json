@@ -1,0 +1,19 @@
+{
+"configurations": [
+        {
+            "name": "Debug YMM4",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${env:YMM4_PATH}/YukkuriMovieMaker.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "justMyCode": false,
+            "logging": {
+                "moduleLoad": false
+            }
+        }
+]
+}
