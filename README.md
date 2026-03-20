@@ -1,9 +1,9 @@
 # かたすみキャプチャ（KatasumiCapture）
+![GitHub License](https://github.com/bluemistel/KatasumiCapture/blob/main/docs/KatasumiCapture_explanation.png?raw=true)
 
 YukkuriMovieMaker4（YMM4）向けのツールプラグインです。デスクトップ上の任意の範囲を矩形選択し、クリップボードへコピーするか、タイムラインへ画像として貼り付けるかを選べます。
 
-**リポジトリ**: [bluemistel/KatasumiCapture](https://github.com/bluemistel/KatasumiCapture)
-
+[最新バージョンのダウンロード](https://github.com/bluemistel/KatasumiCapture/releases)
 
 ## 特長
 
